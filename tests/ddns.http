@@ -1,0 +1,80 @@
+### GET request to Cloudflare trace
+GET https://cloudflare.com/cdn-cgi/trace
+Content-Type: text/plain
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    var text = response.body;
+
+    for (var line of text.split('\n')) {
+        let token = line.split('=');
+        if (token[0] == 'ip') {
+            client.global.set('client_ip', token[1])
+        }
+    }
+
+ %}
+
+### GET request to Cloudflare token verify
+GET https://api.cloudflare.com/client/v4/user/tokens/verify
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+### GET request to Cloudflare zones
+GET https://api.cloudflare.com/client/v4/zones
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    var zones = response.body.result;
+
+
+    for (var zone of zones) {
+        client.log(zone.name);
+
+        if (zone.name == "oneuon.com") {
+            client.global.set("zone_id", zone.id);
+            break;
+        }
+    }
+ %}
+
+### GET requests to Coudflare zone details
+GET https://api.cloudflare.com/client/v4/zones/{{zone_id}}/dns_records
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    var recs = response.body.result
+
+    for (var rec of recs) {
+        client.log(rec.name);
+        if (rec.name == 'comet.oneuon.com') {
+            client.global.set('dns_record_id', rec.id)
+            break;
+        }
+    }
+%}
+
+### GET requests to Cloudflare record details
+GET https://api.cloudflare.com/client/v4/zones/{{zone_id}}/dns_records/{{dns_record_id}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+### PATCH request to Cloudflare records
+PATCH https://api.cloudflare.com/client/v4/zones/{{zone_id}}/dns_records/{{dns_record_id}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{"content": "{{client_ip}}", "comment": "Record Updated via API call"}
