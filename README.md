@@ -1,1 +1,1 @@
-# Dynamic Update DNS Record via Cloudflare API
+# Dynamic update of DNS records via Cloudflare API
