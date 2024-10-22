@@ -1,3 +1,5 @@
 /tests/http-client.private.env.json
 /venv/
 .idea
+/cfddns.yml
+__pycache__
