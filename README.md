@@ -29,4 +29,4 @@ cfddns -t API_TOKEN ddns.acme.com 1.1.1.1
 ```
 
 ## License
-Refer to [LICENSE][/LICENSE]
+Refer to [LICENSE](/LICENSE)
