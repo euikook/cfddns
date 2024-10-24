@@ -1,5 +1,6 @@
 /tests/http-client.private.env.json
 /venv/
 .idea
-/cfddns.yml
+/examples/cfddns.yml
 __pycache__
+*.egg-info

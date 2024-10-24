@@ -110,7 +110,7 @@ def update_dns_record(cfg):
     }
 
     zone_id = retrieve_zone_id(cfg['token'], cfg['zone'])
-    record_id = retrieve_record_id(cfg['token'], zone_id, cfg['record'])
+    record_id = retrieve_record_id(cfg['token'], zone_id, cfg['host'])
 
     data = {"content": cfg['ip'], "comment": f"cfddns: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"}
 
@@ -127,4 +127,5 @@ def update_dns_record(cfg):
 
 def retrieve_dns_record(cfg):
     zone_id = retrieve_zone_id(cfg['token'], cfg['zone'])
-    return retrieve_record_content(cfg['token'], zone_id, cfg['record'])
+    if zone_id is None: raise NameError(cfg['zone'])
+    return retrieve_record_content(cfg['token'], zone_id, cfg['host'])

@@ -5,7 +5,9 @@ from typing import TypedDict
 
 import yaml
 
-from cloudflare import check_ip, retrieve_dns_record, update_dns_record
+
+from cfddns import check_ip, retrieve_dns_record, update_dns_record
+
 
 # cfg = {
 #     'cache': '/var/lib/cfdns/cfdns.cache',
@@ -18,7 +20,7 @@ from cloudflare import check_ip, retrieve_dns_record, update_dns_record
 class CFConfig(TypedDict):
     cache: str | None
     zone: str | None
-    record: str | None
+    host: str | None
     ip: str | None
     token: str | None
 
@@ -32,7 +34,10 @@ VERSION = "1.0"
 def cfg_parse(cfg_file):
     with open(cfg_file) as stream:
         try:
-            return yaml.safe_load(stream)
+            data = yaml.safe_load(stream)
+            record = data['domain'].split('.')[0]
+            zone = ".".join(data['domain'].split('.')[1:])
+            return {'token': data['token'], 'ip': data['ip'], 'zone':zone, 'record': record }
         except yaml.YAMLError as e:
             print(e)
 
@@ -49,16 +54,15 @@ def decode(msg):
 
 def usages(prog):
 
-    help_msg = f'''{prog} [OPTION]
+    help_msg = f'''Usages: {prog} [OPTION] domain [ip]
+        {prog} -c CONFIG
 Dynamic update of Cloudflare DNS record.
-    
+
 Mandatory arguments to long options are mandatory for short options too.
- -h, --help              Display this message and exit.
- -i, --ip[=IP]           Specify IP address for update.
- -r, --record[=RECORD]   Specify DNS record to be used for update. 
+ -c, --config[=CONFIG]   Specify configuration file. (other options are ignored)
+ -h, --help              Display this message and exit. 
  -t, --token[=TOKEN]     Specify API token to be used for  update.
  -v, --version           Display version.
- -z, --zone              Specify zone to be used for update.
     '''
     print(help_msg)
 
@@ -67,7 +71,8 @@ def main():
     dryrun = False
     prog = sys.argv[0]
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'hdi:c:t:v',  ["help", "dryrun", "ip", "config", "token", "version"])
+        opts, args = getopt.getopt(sys.argv[1:], 'hc:t:v',
+                                   ["help", "config", "token", "version"])
     except getopt.GetoptError as err:
         print(err)
         sys.exit(2)
@@ -76,11 +81,6 @@ def main():
         if opt in ['-h', '--help']:
             usages(prog)
             sys.exit()
-
-        if opt in ["-i", "--ip"]:
-            if check_ip(arg):
-                sys.exit(-1)
-            cfg["ip"] = arg
 
         if opt in ["-c", "--config"]:
             try:
@@ -93,24 +93,31 @@ def main():
         if opt in ["-t", "--token"]:
             cfg['token'] = arg
 
-        if opt in ["z", "--zone"]:
-            cfg['zone'] = arg
 
-        if opt in ["-r", "--record"]:
-            cfg['record'] = arg
-
-        if opt in ["-v", "--version"]:
-            print(VERSION, file=sys.stdout)
-
-        if opt in ["-d", "--dryrun"]:
-            dryrun = True
+    if len(args) == 0 or len(args) > 2:
+        usages(prog)
+        return None
 
 
-    if None in [cfg['token'], cfg['zone'], cfg['record']]:
-        missing_values = ", ".join([k for k, v in cfg.items() if v is None])
+    cfg['host'] = args[0]
+    cfg['zone'] = ".".join(args[0].split(".")[1:])
+
+    if len(args) == 2:
+        if check_ip(args[1]) is False:
+            print(f"Invalid IP address format: {args[1]}")
+            return None
+        cfg['ip'] = args[1]
+
+
+    fields = list(cfg.keys())
+    fields.remove('ip')
+
+    if None in [cfg[k] for k in fields]:
+        missing_values = ", ".join([k for k in fields if cfg[k] is None])
         print(f"Mandatory arguments was not specified. ({missing_values})", file=sys.stderr)
         sys.exit(-1)
 
+    print(cfg)
     if dryrun:
         print(retrieve_dns_record(cfg))
     else:

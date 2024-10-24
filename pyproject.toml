@@ -1,0 +1,47 @@
+[build-system]
+requires = ["flit_core >=2,<4"]
+build-backend = "flit_core.buildapi"
+
+
+[project]
+name = "cfddns"
+description = "Dynamic update of DNS records via Cloudflare API"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+authors = [{name = "euikook", email="euikook@gmail.com"}]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+keywords = []
+
+# pip dependencies of the project
+dependencies = [
+    "certifi",
+    "charset-normalizer",
+    "idna",
+    "ipaddress",
+    "PyYAML",
+    "requests",
+    "setuptools",
+    "urllib3"
+]
+
+# This is set automatically by flit using `cfddns.__version__`
+dynamic = ["version"]
+
+[project.urls]
+homepage = "https://github.com/euikook/cfddns"
+repository = "https://github.com/euikook/cfddns"
+# Other: `documentation`, `changelog`
+
+[project.optional-dependencies]
+# Development deps (unittest, linting, formatting,...)
+# Installed through `pip install .[dev]`
+dev = []
+
+[project.scripts]
+cfddns = "cfddns.cli:main"
