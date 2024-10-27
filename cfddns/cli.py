@@ -1,5 +1,10 @@
 import sys, getopt
 
+
+
+from cfddns import __version__
+
+
 from cfddns.cloudflare import update_dns_record, retrieve_dns_record
 from cfddns.config import CFConfig, cfg_parse, is_valid_domain, is_valid_ip
 
@@ -60,6 +65,10 @@ def main():
             if ttl < 60 or ttl > 86400:
                 print("Value error: TTL must be between 60 and 86400.", file=sys.stderr)
                 sys.exit(-1)
+
+        if opt in ['-v', '--version']:
+            print(__version__)
+            sys.exit(0)
 
     if len(args) == 0 or len(args) > 2:
         usages(prog)
