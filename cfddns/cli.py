@@ -1,78 +1,36 @@
 import sys, getopt
-import pickle
-import base64
-from typing import TypedDict
 
-import yaml
+from cfddns.cloudflare import update_dns_record, retrieve_dns_record
+from cfddns.config import CFConfig, cfg_parse, is_valid_domain, is_valid_ip
 
+cfg = CFConfig(cache='/var/lib/cfdns/cfdns.cache', domain=None, ip=None, token=None, proxy=False, ttl=1)
 
-from cfddns import check_ip, retrieve_dns_record, update_dns_record
-
-
-# cfg = {
-#     'cache': '/var/lib/cfdns/cfdns.cache',
-#     'zone': None,
-#     'record': None,
-#     'ip': None,
-#     'token': None,
-# }
-
-class CFConfig(TypedDict):
-    cache: str | None
-    zone: str | None
-    host: str | None
-    ip: str | None
-    token: str | None
-
-
-cfg = CFConfig(cache='/var/lib/cfdns/cfdns.cache', ip=None, zone=None, record=None, token=None)
-
-
-VERSION = "1.0"
-
-
-def cfg_parse(cfg_file):
-    with open(cfg_file) as stream:
-        try:
-            data = yaml.safe_load(stream)
-            record = data['domain'].split('.')[0]
-            zone = ".".join(data['domain'].split('.')[1:])
-            return {'token': data['token'], 'ip': data['ip'], 'zone':zone, 'record': record }
-        except yaml.YAMLError as e:
-            print(e)
-
-
-def encode(msg):
-    msg_bytes = pickle.dumps(msg)
-    enc_msg = base64.b64encode(msg_bytes)
-    return enc_msg.decode('ascii')
-
-def decode(msg):
-    enc_msg = msg.encode('ascii')
-    msg_bytes = base64.b64decode(enc_msg)
-    return pickle.loads(msg_bytes)
 
 def usages(prog):
 
-    help_msg = f'''Usages: {prog} [OPTION] domain [ip]
+    help_msg = f'''Usages: {prog} [OPTION] DOMAIN [IP]
         {prog} -c CONFIG
 Dynamic update of Cloudflare DNS record.
 
+  DOMAIN                   DNS record name(or @ for the zone apex) in Punycode
+  IP                       IP address for DNS record
+  
 Mandatory arguments to long options are mandatory for short options too.
- -c, --config[=CONFIG]   Specify configuration file. (other options are ignored)
- -h, --help              Display this message and exit. 
- -t, --token[=TOKEN]     Specify API token to be used for  update.
- -v, --version           Display version.
+  -a, --auth[=TOKEN]      Specify API token to be used for  update.
+  -c, --config[=CONFIG]   Specify configuration file. (other options are ignored)
+  -h, --help              Display this message and exit.
+  -p, --proxy             Enable Cloudflare proxy. (Default: Disabled) 
+  -t, --ttl[=SECONDS]     Time to Live(TTL) of DNS record in seconds.
+                          Value must be between 60 and 86400, Default: Automatic     
+  -v, --version           Display version.
     '''
     print(help_msg)
 
 def main():
-
-    dryrun = False
     prog = sys.argv[0]
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'hc:t:v',
-                                   ["help", "config", "token", "version"])
+        opts, args = getopt.getopt(sys.argv[1:], 'a:c:hpt:v',
+                                   ["auth", "config", "help", "proxy", "ttl", "version"])
     except getopt.GetoptError as err:
         print(err)
         sys.exit(2)
@@ -90,20 +48,32 @@ def main():
                 print(e)
                 sys.exit(-1)
 
-        if opt in ["-t", "--token"]:
+        if opt in ["-a", "--auth"]:
             cfg['token'] = arg
 
+        if opt in ["-p", "--proxy"]:
+            cfg['proxy'] = True
+
+        if opt in ["-t", "--ttl"]:
+            ttl = int(arg)
+
+            if ttl < 60 or ttl > 86400:
+                print("Value error: TTL must be between 60 and 86400.", file=sys.stderr)
+                sys.exit(-1)
 
     if len(args) == 0 or len(args) > 2:
         usages(prog)
         return None
 
+    cfg['domain'] = args[0]
 
-    cfg['host'] = args[0]
-    cfg['zone'] = ".".join(args[0].split(".")[1:])
+    if is_valid_domain(cfg['domain']) is False:
+        print("Invalid DOMAIN format", file=sys.stderr)
+        sys.exit(-1)
+
 
     if len(args) == 2:
-        if check_ip(args[1]) is False:
+        if is_valid_ip(args[1]) is False:
             print(f"Invalid IP address format: {args[1]}")
             return None
         cfg['ip'] = args[1]
@@ -112,17 +82,15 @@ def main():
     fields = list(cfg.keys())
     fields.remove('ip')
 
-    if None in [cfg[k] for k in fields]:
-        missing_values = ", ".join([k for k in fields if cfg[k] is None])
-        print(f"Mandatory arguments was not specified. ({missing_values})", file=sys.stderr)
+    if cfg['token'] is None:
+        print("API token must be specified", file=sys.stderr)
         sys.exit(-1)
 
-    print(cfg)
-    if dryrun:
-        print(retrieve_dns_record(cfg))
+    if cfg['ip'] is None:
+        data = retrieve_dns_record(cfg)
+        print(f"IP({data['content']}), Proxied({data['proxied']}), TTL({data['ttl']})")
     else:
         update_dns_record(cfg)
-
 
 
 if __name__ == '__main__':

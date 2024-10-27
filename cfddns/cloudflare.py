@@ -1,26 +1,18 @@
 import requests
-import ipaddress
-
 from datetime import datetime
+from cfddns.config import CFConfig, is_valid_ip, extract_zone
 
-def check_ip(ip):
-    try:
-        ipaddress.ip_address(ip)
-    except ValueError:
-        return False
-
-    return True
 
 def get_myip():
     res = requests.get('https://cloudflare.com/cdn-cgi/trace')
-    if (res.status_code != 200):
+    if res.status_code != 200:
         return None
 
     for line in res.text.split('\n'):
         token = line.split('=')
         if token[0] != 'ip': continue
 
-        return token[1] if check_ip(token[1]) else None
+        return token[1] if is_valid_ip(token[1]) else None
 
 
 def token_verify(token):
@@ -46,7 +38,7 @@ def token_verify(token):
     return True
 
 
-def retrieve_zone_id(token, target):
+def retrieve_zone_id(token, name):
     headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + token
@@ -57,6 +49,8 @@ def retrieve_zone_id(token, target):
 
     if res.status_code != 200:
         return None
+
+    target = extract_zone(name)
 
     zones = res.json().get('result')
     for zone in zones:
@@ -99,21 +93,25 @@ def retrieve_record_content(token, zone_id, target):
     records = res.json().get('result')
     for record in records:
         if record['name'] != target: continue
-        return record['content']
+        return record
 
 
 
-def update_dns_record(cfg):
+def update_dns_record(cfg: CFConfig):
     headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + cfg['token']
     }
 
-    zone_id = retrieve_zone_id(cfg['token'], cfg['zone'])
-    record_id = retrieve_record_id(cfg['token'], zone_id, cfg['host'])
+    zone_id = retrieve_zone_id(cfg['token'], cfg['domain'])
+    record_id = retrieve_record_id(cfg['token'], zone_id, cfg['domain'])
 
-    data = {"content": cfg['ip'], "comment": f"cfddns: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"}
-
+    data = {
+        "ttl": cfg['ttl'],
+        'proxyed': cfg['proxy'],
+        "content": cfg['ip'],
+        "comment": f"cfddns: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    }
     res = requests.patch(f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{record_id}",
                          headers=headers,
                          json=data)
@@ -125,7 +123,7 @@ def update_dns_record(cfg):
     return True
 
 
-def retrieve_dns_record(cfg):
-    zone_id = retrieve_zone_id(cfg['token'], cfg['zone'])
-    if zone_id is None: raise NameError(cfg['zone'])
-    return retrieve_record_content(cfg['token'], zone_id, cfg['host'])
+def retrieve_dns_record(cfg: CFConfig):
+    zone_id = retrieve_zone_id(cfg['token'], cfg['domain'])
+    if zone_id is None: raise NameError(cfg['domain'])
+    return retrieve_record_content(cfg['token'], zone_id, cfg['domain'])
