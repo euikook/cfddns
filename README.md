@@ -1,7 +1,7 @@
 # cfddns: Dynamic update of DNS records via Cloudflare API
 
 ## Installation
-```
+```bash
 pip install cfddns
 ```
 
@@ -13,7 +13,8 @@ Usages: cfddns [OPTION] DOMAIN [IP]
 Dynamic update of Cloudflare DNS record.
 
   DOMAIN                   DNS record name(or @ for the zone apex) in Punycode
-  IP                       IP address for DNS record
+  IP                       IP address for DNS record (Example: 1.2.3.4)
+                           To use "web", if you want get your IP address from web 
   
 Mandatory arguments to long options are mandatory for short options too.
   -a, --auth[=TOKEN]      Specify API token to be used for  update.
@@ -27,25 +28,28 @@ Mandatory arguments to long options are mandatory for short options too.
 ```
 
 ### Retrieve current assigned IP address
-```
+```bash
 cfddns [options] domain
 ```
 
 Examples:
-```
+```bash
 cfddns -t API_TOKEN ddns.acme.com
 ```
 
 ### Update IP address to dns record
 
-```
+```bash
 cfddns [options] DOMAIN IPADDRESS
 ```
 
 Examples:
-```
+```bash
 cfddns -t API_TOKEN ddns.acme.com 1.1.1.1
 ```
 
+```bash
+cfddns -t API_TOKEN ddns.acme.com web
+```
 ## License
 Refer to [LICENSE](/LICENSE)

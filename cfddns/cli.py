@@ -5,7 +5,7 @@ import sys, getopt
 from cfddns import __version__
 
 
-from cfddns.cloudflare import update_dns_record, retrieve_dns_record
+from cfddns.cloudflare import update_dns_record, retrieve_dns_record, get_myip
 from cfddns.config import CFConfig, cfg_parse, is_valid_domain, is_valid_ip
 
 cfg = CFConfig(cache='/var/lib/cfdns/cfdns.cache', domain=None, ip=None, token=None, proxy=False, ttl=1)
@@ -82,14 +82,12 @@ def main():
 
 
     if len(args) == 2:
-        if is_valid_ip(args[1]) is False:
-            print(f"Invalid IP address format: {args[1]}")
+        addr = get_myip() if args[1] == 'web' else args[1]
+        if is_valid_ip(addr) is False:
+            print(f"Invalid IP address format: {addr}")
             return None
-        cfg['ip'] = args[1]
+        cfg['ip'] = addr
 
-
-    fields = list(cfg.keys())
-    fields.remove('ip')
 
     if cfg['token'] is None:
         print("API token must be specified", file=sys.stderr)
