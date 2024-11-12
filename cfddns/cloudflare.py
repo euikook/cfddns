@@ -8,11 +8,10 @@ def get_myip():
     if res.status_code != 200:
         return None
 
-    for line in res.text.split('\n'):
-        token = line.split('=')
-        if token[0] != 'ip': continue
+    text = res.text.strip()
 
-        return token[1] if is_valid_ip(token[1]) else None
+    traces = dict((n, v) for n, v in (line.split("=") for line in text.split('\n')))
+    return traces.get("ip")
 
 
 def token_verify(token):
@@ -53,10 +52,8 @@ def retrieve_zone_id(token, name):
     target = extract_zone(name)
 
     zones = res.json().get('result')
-    for zone in zones:
-        if zone['name'] != target: continue
-        return zone['id']
 
+    return next((zone["id"] for zone in zones if zone["name"] == target), None)
 
 
 def retrieve_record_id(token, zone_id, target):
@@ -73,9 +70,7 @@ def retrieve_record_id(token, zone_id, target):
 
     records = res.json().get('result')
 
-    for record in records:
-        if record['name'] != target: continue
-        return record['id']
+    return next((record["id"] for record in records if record["name"] == target), None)
 
 def retrieve_record_content(token, zone_id, target):
     headers = {
@@ -91,11 +86,7 @@ def retrieve_record_content(token, zone_id, target):
         return None
 
     records = res.json().get('result')
-    for record in records:
-        if record['name'] != target: continue
-        return record
-
-
+    return next((record for record in records if record["name"] == target), None)
 
 def update_dns_record(cfg: CFConfig):
     headers = {
